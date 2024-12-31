@@ -567,4 +567,101 @@ li.available {
   .react-calendar {
     font-size: 0.9rem;
   }
-} 
+}
+
+.tutor-header {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.tutor-image {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid #e2e8f0;
+}
+
+.tutor-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tutor-basic-info {
+  flex-grow: 1;
+}
+
+.tutor-basic-info h3 {
+  margin: 0 0 8px 0;
+  color: #2d3748;
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+}
+
+.tutor-basic-info p {
+  margin: 4px 0;
+  color: #4a5568;
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+}
+
+.detail-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.detail-section li {
+  padding: 12px;
+  margin-bottom: 8px;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  color: #4a5568;
+  font-size: clamp(0.9rem, 1.5vw, 1rem);
+}
+
+.courses-list li {
+  padding: 16px;
+  margin-bottom: 12px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.course-info h5 {
+  margin: 0 0 8px 0;
+  color: #2d3748;
+  font-size: 1.1rem;
+}
+
+.course-info p {
+  margin: 0 0 12px 0;
+  color: #4a5568;
+  font-size: 0.95rem;
+}
+
+.course-dates {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.course-dates span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .course-dates {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* ... rest of your existing styles ... */ 

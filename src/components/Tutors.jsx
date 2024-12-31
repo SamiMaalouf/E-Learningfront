@@ -198,9 +198,22 @@ const Tutors = () => {
           {tutors.map((tutor) => (
             <div key={tutor.id} className="tutor-card">
               <div className="tutor-info">
-                <h3>{tutor.name}</h3>
-                <p>{tutor.email}</p>
-                <p>{tutor.role}</p>
+                <div className="tutor-header">
+                  <div className="tutor-image">
+                    <img 
+                      src={tutor.image_url || 'default-avatar.png'} 
+                      alt={tutor.name}
+                      onError={(e) => {
+                        e.target.src = 'default-avatar.png';
+                      }}
+                    />
+                  </div>
+                  <div className="tutor-basic-info">
+                    <h3>{tutor.name}</h3>
+                    <p>{tutor.email}</p>
+                    <p>{tutor.role}</p>
+                  </div>
+                </div>
               </div>
 
               {expandedTutor === tutor.id && tutorDetails[tutor.id] && (
@@ -208,20 +221,36 @@ const Tutors = () => {
                   <div className="detail-section">
                     <h4>Grades Taught</h4>
                     <ul>
-                      {tutorDetails[tutor.id].classes.map((cls, index) => (
-                        <li key={index}>
-                          Grade {cls.grade_name} - Section {cls.section}
-                        </li>
-                      ))}
+                      {tutorDetails[tutor.id].classes.map((cls, index) => {
+                        console.log('Class data:', cls); // For debugging
+                        return (
+                          <li key={index}>
+                             {cls.grade_level || cls.grade_id} {cls.section}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
 
                   <div className="detail-section">
                     <h4>Courses Taught</h4>
                     <ul className="courses-list">
-                      {tutorDetails[tutor.id].courses.map((course, index) => (
-                        <li key={index}>{course.name}</li>
-                      ))}
+                      {tutorDetails[tutor.id].courses.length > 0 ? (
+                        tutorDetails[tutor.id].courses.map((course) => (
+                          <li key={course.id}>
+                            <div className="course-info">
+                              <h5>{course.title}</h5>
+                              <p>{course.description}</p>
+                              <div className="course-dates">
+                                <span>Start: {new Date(course.start_date).toLocaleDateString()}</span>
+                                <span>End: {new Date(course.end_date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </li>
+                        ))
+                      ) : (
+                        <li>No courses assigned yet</li>
+                      )}
                     </ul>
                   </div>
 
