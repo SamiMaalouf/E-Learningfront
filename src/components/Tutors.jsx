@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import './Tutors.css';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
+import { toast } from 'react-hot-toast';
 
 const Tutors = () => {
   const [tutors, setTutors] = useState([]);
@@ -16,6 +17,8 @@ const Tutors = () => {
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [bookingSlotId, setBookingSlotId] = useState(null);
+  const [reschedulingSlotId, setReschedulingSlotId] = useState(null);
+  const [isRescheduling, setIsRescheduling] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -232,6 +235,53 @@ const Tutors = () => {
     }
   };
 
+  const rescheduleSession = async (currentSlotId, newSlotId, tutorId) => {
+    try {
+      setIsRescheduling(true);
+      const token = localStorage.getItem('token');
+      
+      console.log('Attempting to reschedule:', {
+        current_slot_id: currentSlotId,
+        new_slot_id: newSlotId,
+        tutorId: tutorId
+      });
+
+      const response = await fetch('http://localhost:5000/api/availability/reschedule', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          current_slot_id: currentSlotId,
+          new_slot_id: newSlotId
+        })
+      });
+
+      const data = await response.json();
+      console.log('API Response:', data);
+
+      if (data.success) {
+        toast.success(`Successfully rescheduled from ${data.rescheduled.from.start} to ${data.rescheduled.to.start}`);
+        
+        // Pass tutorId to fetchTutorDetails
+        if (typeof fetchTutorDetails === 'function') {
+          await fetchTutorDetails(tutorId);
+        }
+        
+        setReschedulingSlotId(null);
+      } else {
+        throw new Error('Rescheduling failed');
+      }
+
+    } catch (error) {
+      console.error('Reschedule error:', error);
+      toast.error('Failed to reschedule session');
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
   return (
     <div className="tutors-container">
       <div className="tutors-header">
@@ -346,45 +396,88 @@ const Tutors = () => {
                       />
                     </div>
                     
-                    <div className="slots-list">
-                      {getDateSlots(tutor.id, selectedDate).map((slot) => (
-                        <div 
-                          key={slot.id}
-                          className={`slot ${slot.is_booked ? 'booked' : 'available'}`}
-                        >
-                          <span className="slot-time">
-                            {`${slot.start} - ${slot.end}`}
-                          </span>
-                          <span className="slot-status">
-                            {slot.is_booked ? (
-                              <>
-                                <span>(Booked)</span>
-                                <button 
-                                  className="cancel-button"
-                                  onClick={() => deleteBooking(slot.id)}
-                                  disabled={deletingSlotId === slot.id}
-                                >
-                                  {deletingSlotId === slot.id ? 'Cancelling...' : 'Cancel'}
-                                </button>
-                              </>
-                            ) : (
-                              <div 
-                                className="booking-action"
-                                onClick={() => !bookingSlotId && bookSession(tutor.id, slot.id)}
-                              >
-                                {bookingSlotId === slot.id ? (
-                                  <span className="booking-status">Booking...</span>
-                                ) : (
-                                  <>
-                                    <span className="available-text">Available</span>
-                                    <span className="book-prompt">Click to book →</span>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </span>
+                    <div className="schedule-container">
+                      {reschedulingSlotId && (
+                        <div className="reschedule-header">
+                          <div className="reschedule-banner">
+                            <span>🔄 Rescheduling session...</span>
+                            <button 
+                              className="exit-reschedule-button"
+                              onClick={() => setReschedulingSlotId(null)}
+                            >
+                              ✕ Cancel Rescheduling
+                            </button>
+                          </div>
                         </div>
-                      ))}
+                      )}
+
+                      <div className={`slots-list ${reschedulingSlotId ? 'reschedule-mode' : ''}`}>
+                        {getDateSlots(tutor.id, selectedDate).map((slot) => (
+                          <div 
+                            key={slot.id}
+                            className={`slot ${
+                              slot.id === reschedulingSlotId ? 'current-slot' : ''
+                            } ${slot.is_booked ? 'booked' : 'available'}`}
+                          >
+                            <div className="slot-time">
+                              {`${slot.start} - ${slot.end}`}
+                            </div>
+                            
+                            <div className="slot-actions">
+                              {slot.is_booked ? (
+                                <>
+                                  {slot.id === reschedulingSlotId ? (
+                                    <span className="current-slot-label">Current Time</span>
+                                  ) : (
+                                    <>
+                                      <button 
+                                        className="cancel-button"
+                                        onClick={() => deleteBooking(slot.id)}
+                                        disabled={deletingSlotId === slot.id || isRescheduling}
+                                      >
+                                        Cancel
+                                      </button>
+                                      {!reschedulingSlotId && (
+                                        <button 
+                                          className="reschedule-button"
+                                          onClick={() => setReschedulingSlotId(slot.id)}
+                                        >
+                                          Reschedule
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                reschedulingSlotId ? (
+                                  <button
+                                    className="confirm-reschedule-button"
+                                    onClick={() => {
+                                      console.log('Initiating reschedule:', {
+                                        from: reschedulingSlotId,
+                                        to: slot.id,
+                                        tutorId: tutor.id
+                                      });
+                                      rescheduleSession(reschedulingSlotId, slot.id, tutor.id);
+                                    }}
+                                    disabled={isRescheduling}
+                                  >
+                                    {isRescheduling ? 'Rescheduling...' : 'Select This Time →'}
+                                  </button>
+                                ) : (
+                                  <div 
+                                    className="available-slot"
+                                    onClick={() => !bookingSlotId && bookSession(tutor.id, slot.id)}
+                                  >
+                                    <span className="available-text">Available</span>
+                                    <span className="book-text">Click to book →</span>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>

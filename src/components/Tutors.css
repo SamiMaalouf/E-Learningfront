@@ -380,50 +380,185 @@ li.available {
 }
 
 .slots-list {
-  max-height: 400px;
-  overflow-y: auto;
-  padding-right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
 }
 
 .slot {
-  padding: 12px 16px;
-  margin-bottom: 10px;
-  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-  gap: 16px;
-}
-
-.slot:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  margin-bottom: 8px;
 }
 
 .slot-time {
-  font-weight: 500;
-  color: #374151;
-  min-width: 120px;
+  font-size: 16px;
+  color: #1f2937;
 }
 
-.slot-status {
+.slot-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cancel-button {
+  padding: 8px 16px;
+  background-color: #f87171;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.reschedule-button {
+  padding: 8px 16px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.confirm-reschedule-button {
+  padding: 8px 16px;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.confirm-reschedule-button:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+.confirm-reschedule-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.available-slot {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
-  min-width: 180px;
-  justify-content: flex-end;
-}
-
-.available-text, .booked-text {
-  min-width: 80px;
+  padding: 8px 16px;
+  background-color: #ecfdf5;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .available-text {
   color: #059669;
+  font-weight: 500;
+}
+
+.book-text {
+  color: #059669;
+}
+
+.select-time-button {
+  padding: 8px 16px;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Disabled states */
+.cancel-button:disabled,
+.reschedule-button:disabled,
+.select-time-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hover states */
+.cancel-button:hover:not(:disabled) {
+  background-color: #ef4444;
+}
+
+.reschedule-button:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.select-time-button:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+.available-slot:hover {
+  background-color: #d1fae5;
+}
+
+.book-prompt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background-color: #ecfdf5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.book-prompt:hover {
+  background-color: #d1fae5;
+}
+
+.status-text {
+  color: #059669;
+  font-weight: 500;
+}
+
+.action-text {
+  color: #059669;
+}
+
+.book-button {
+  padding: 8px 16px;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.book-button:hover {
+  background-color: #047857;
+}
+
+/* Disabled states */
+.cancel-button:disabled,
+.reschedule-button:disabled,
+.book-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.available-action {
+  min-width: 200px;
+  text-align: right;
+}
+
+.available-text {
+  color: #059669;
+  font-weight: 500;
 }
 
 .booked .slot-time {
@@ -1134,4 +1269,219 @@ button {
   .react-calendar__tile {
     padding: 10px 6px;
   }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.reschedule-button {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #3b82f6;
+  background-color: white;
+  color: #3b82f6;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.reschedule-button:hover {
+  background-color: #eff6ff;
+}
+
+.reschedule-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirm-reschedule-button {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: none;
+  background-color: #3b82f6;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.confirm-reschedule-button:hover {
+  background-color: #2563eb;
+}
+
+.confirm-reschedule-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slot.available.reschedule-target {
+  border: 2px solid #3b82f6;
+  background-color: #eff6ff;
+}
+
+.reschedule-mode-banner {
+  background-color: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reschedule-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4f46e5;
+  font-weight: 500;
+}
+
+.reschedule-icon {
+  font-size: 18px;
+}
+
+.exit-reschedule-button {
+  padding: 8px 16px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.exit-reschedule-button:hover {
+  background-color: #4338ca;
+}
+
+/* Keep your existing CSS and add/update these styles */
+.confirm-reschedule-button {
+  padding: 8px 16px;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 150px;
+  text-align: center;
+}
+
+.confirm-reschedule-button:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+.confirm-reschedule-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Rest of your existing CSS remains the same */
+
+.schedule-container {
+  position: relative;
+  padding: 16px;
+}
+
+.reschedule-header {
+  margin-bottom: 16px;
+}
+
+.reschedule-banner {
+  background-color: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #4f46e5;
+  font-weight: 500;
+}
+
+.exit-reschedule-button {
+  padding: 8px 16px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.exit-reschedule-button:hover {
+  background-color: #4338ca;
+}
+
+.slots-list.reschedule-mode {
+  position: relative;
+  padding: 16px;
+  border: 2px solid #c7d2fe;
+  border-radius: 12px;
+}
+
+.slot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.slot.current-slot {
+  background-color: #f3f4f6;
+  border: 2px solid #6b7280;
+}
+
+.slot-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.confirm-reschedule-button {
+  padding: 8px 16px;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-reschedule-button:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+/* Keep your existing button and slot styles */ 
+
+.loading-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-text::after {
+  content: "...";
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% { content: "."; }
+  33% { content: ".."; }
+  66% { content: "..."; }
 } 
