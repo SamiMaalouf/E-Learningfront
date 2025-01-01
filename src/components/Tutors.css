@@ -1,8 +1,7 @@
 .tutors-container {
   padding: 20px;
-  max-width: 100%;
+  height: calc(100vh - 64px);
   overflow-y: auto;
-  min-height: 100vh;
 }
 
 .tutors-header {
@@ -45,8 +44,9 @@
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  height: fit-content;
+  height: auto;
+  overflow: visible;
+  position: relative;
 }
 
 .tutor-card:hover {
@@ -100,26 +100,8 @@
   margin: 5px 0;
 }
 
-.book-button {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: none;
-  background-color: #4CAF50;
-  color: white;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.book-button:hover:not(:disabled) {
-  background-color: #45a049;
-  transform: translateY(-1px);
-}
-
-.book-button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
+.book-button, .cancel-button {
+  display: none;
 }
 
 .tutors-loading, .tutors-error {
@@ -250,88 +232,108 @@ li.available {
 /* Calendar Container */
 .calendar-container {
   margin: 20px 0;
-  width: 100%;
-  max-width: 350px;
 }
 
 /* Main Calendar Styling */
 .react-calendar {
-  width: 100%;
+  width: 350px;
+  max-width: 100%;
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  font-family: system-ui, -apple-system, sans-serif;
-  line-height: 1.125em;
-  padding: 1rem;
+  border-radius: 8px;
+  padding: 16px;
+  font-family: inherit;
 }
 
-/* Navigation (Month/Year) */
+.react-calendar button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: 0;
+  outline: none;
+  padding: 8px;
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .react-calendar__navigation {
   display: flex;
-  margin-bottom: 1rem;
+  height: 44px;
+  margin-bottom: 1em;
 }
 
 .react-calendar__navigation button {
   min-width: 44px;
   background: none;
   font-size: 16px;
-  padding: 8px;
-  border: 0;
-  color: #4a5568;
-  border-radius: 8px;
 }
 
-.react-calendar__navigation button:enabled:hover,
-.react-calendar__navigation button:enabled:focus {
-  background-color: #f7fafc;
-}
-
-.react-calendar__navigation button[disabled] {
-  background-color: #f1f5f9;
-}
-
-/* Month View */
 .react-calendar__month-view__weekdays {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr);
   text-align: center;
   text-transform: uppercase;
-  font-weight: 600;
-  font-size: 0.8em;
-  color: #4a5568;
-  padding: 8px 0;
+  font-weight: bold;
+  font-size: 0.75em;
 }
 
 .react-calendar__month-view__weekdays__weekday {
   padding: 0.5em;
 }
 
-/* Calendar Tiles */
+.react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.react-calendar__month-view__days {
+  display: grid !important;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
 .react-calendar__tile {
   max-width: 100%;
-  padding: 12px 6px;
-  background: none;
   text-align: center;
+  padding: 0.75em 0.5em;
+  background: none;
   line-height: 16px;
-  font: inherit;
-  font-size: 0.9em;
-  border-radius: 8px;
-  border: none;
-  color: #1a202c;
+  font-size: 0.875rem;
 }
 
 .react-calendar__tile:enabled:hover,
 .react-calendar__tile:enabled:focus {
-  background-color: #edf2f7;
+  background-color: #f7fafc;
+  border-radius: 4px;
 }
 
 .react-calendar__tile--now {
-  background: #e9f5ff;
-  color: #3182ce;
+  background: #e6fffa;
 }
 
 .react-calendar__tile--active {
-  background: #667eea !important;
-  color: white !important;
+  background: #3b82f6 !important;
+  color: white;
+}
+
+.react-calendar__month-view__days__day--weekend {
+  color: #ef4444;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: #9ca3af;
+}
+
+.has-slots-indicator {
+  width: 4px;
+  height: 4px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 /* Slots Indicators */
@@ -378,56 +380,54 @@ li.available {
 }
 
 .slots-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 10px;
 }
 
 .slot {
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  border-radius: 8px;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
-  cursor: pointer;
+  gap: 16px;
 }
 
-.slot.available {
-  border: 1px solid #4CAF50;
-  background-color: #f0fff4;
-}
-
-.slot.available:hover {
-  background-color: #dcfce7;
+.slot:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.slot.booked {
-  border: 1px solid #dc3545;
-  background-color: #fff5f5;
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 
 .slot-time {
-  font-size: 1rem;
-  color: #2d3748;
+  font-weight: 500;
+  color: #374151;
+  min-width: 120px;
 }
 
 .slot-status {
-  color: #666;
-  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 180px;
+  justify-content: flex-end;
 }
 
-.slot.available .slot-status {
-  color: #4CAF50;
+.available-text, .booked-text {
+  min-width: 80px;
 }
 
-.slot.booked .slot-status {
-  color: #dc3545;
+.available-text {
+  color: #059669;
+}
+
+.booked .slot-time {
+  color: #6b7280;
 }
 
 .booking-error {
@@ -505,7 +505,6 @@ li.available {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  position: relative;
   overflow: visible;
 }
 
@@ -664,4 +663,475 @@ li.available {
   }
 }
 
-/* ... rest of your existing styles ... */ 
+/* ... rest of your existing styles ... */
+
+.error-message {
+  color: #dc3545;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+  background-color: #f8d7da;
+}
+
+.success-message {
+  color: #28a745;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+  background-color: #d4edda;
+}
+
+/* Only show buttons within slots-list */
+.slots-list .slot .book-button,
+.slots-list .slot .cancel-button {
+  display: inline-flex;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  margin-left: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slots-list .slot .book-button {
+  background-color: #22c55e;
+  color: white;
+}
+
+.slots-list .slot .book-button:hover:not(:disabled) {
+  background-color: #16a34a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.slots-list .slot .book-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.experience-item {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.experience-item h3 {
+  margin: 0 0 8px 0;
+  color: #374151;
+  font-size: 18px;
+}
+
+.experience-item .company-location {
+  color: #6b7280;
+  margin: 4px 0;
+}
+
+.experience-item .date {
+  color: #9ca3af;
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+.experience-item .description {
+  margin-top: 8px;
+  color: #4b5563;
+}
+
+/* Remove any book buttons that might appear */
+.experience-item .book-button,
+.detail-section > .book-button {
+  display: none !important;
+}
+
+/* Remove duplicate experience-item styles (lines 748-776) */
+/* Remove duplicate slots-list button styles (lines 785-824) */
+/* Keep only the latest experience-list styles (lines 826-872) */
+.experience-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.experience-item {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.experience-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.experience-title {
+  margin: 0;
+  color: #374151;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.company-location {
+  color: #6b7280;
+  margin: 0;
+}
+
+.experience-date {
+  color: #9ca3af;
+  font-size: 14px;
+  margin: 0;
+}
+
+.experience-description {
+  color: #4b5563;
+  margin: 8px 0 0 0;
+}
+
+/* Explicitly remove any buttons */
+.experience-item button,
+.experience-content button {
+  display: none !important;
+}
+
+/* Reset all button styles */
+button {
+  display: none;
+}
+
+/* Only show specific buttons */
+.slots-list .slot button,
+.expand-button,
+.back-button {
+  display: inline-flex;
+}
+
+/* Rest of your button styles */
+.slots-list .slot .book-button,
+.slots-list .slot .cancel-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  margin-left: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slots-list .slot .book-button {
+  background-color: #22c55e;
+  color: white;
+}
+
+.slots-list .slot .cancel-button {
+  background-color: #ef4444;
+  color: white;
+}
+
+.booking-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #f0fdf4;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #22c55e;
+}
+
+.booking-action:hover {
+  background-color: #dcfce7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.booking-status {
+  color: #16a34a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.book-prompt {
+  color: #16a34a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.available-text {
+  color: #16a34a;
+  font-weight: 500;
+}
+
+/* Update slot styling */
+.slot {
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.slot-time {
+  font-weight: 500;
+  color: #374151;
+}
+
+.slot-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.react-calendar {
+  width: 100%;
+  max-width: 400px;
+  border: none;
+  font-family: inherit;
+  line-height: 1.125em;
+}
+
+.react-calendar__navigation {
+  margin-bottom: 1em;
+}
+
+.react-calendar__navigation button {
+  min-width: 44px;
+  background: none;
+  font-size: 16px;
+  padding: 8px;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: #f3f4f6;
+}
+
+.react-calendar__month-view__weekdays {
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 0.75em;
+  padding: 8px 0;
+}
+
+.react-calendar__month-view__weekdays__weekday {
+  padding: 0.5em;
+}
+
+.react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.react-calendar__tile {
+  max-width: 100%;
+  padding: 10px 6px;
+  background: none;
+  text-align: center;
+  line-height: 16px;
+  font-size: 14px;
+  position: relative;
+}
+
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+  background-color: #f3f4f6;
+}
+
+.react-calendar__tile--now {
+  background: #dbeafe;
+}
+
+.react-calendar__tile--active {
+  background: #3b82f6 !important;
+  color: white;
+}
+
+.react-calendar__month-view__days__day--weekend {
+  color: #ef4444;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: #9ca3af;
+}
+
+.has-slots {
+  font-weight: bold;
+}
+
+.slot-dot {
+  width: 4px;
+  height: 4px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Calendar styles */
+.calendar-wrapper {
+  margin: 20px 0;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.react-calendar {
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  border: none;
+  font-family: inherit;
+}
+
+/* Navigation/Header Styles */
+.react-calendar__navigation {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.react-calendar__navigation button {
+  min-width: 44px;
+  background: none;
+  border: none;
+  padding: 8px;
+  color: #6b7280;
+}
+
+.react-calendar__navigation__label {
+  font-weight: 500;
+  font-size: 16px;
+  color: #6b7280;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.react-calendar__navigation__arrow {
+  font-size: 20px;
+}
+
+/* Weekday Headers */
+.react-calendar__month-view__weekdays {
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 14px;
+  color: #6b7280;
+  margin: 16px 0;
+}
+
+.react-calendar__month-view__weekdays__weekday {
+  padding: 8px 0;
+}
+
+.react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+/* Calendar Days */
+.react-calendar__month-view__days {
+  row-gap: 12px;
+}
+
+.react-calendar__tile {
+  padding: 14px 8px;
+  background: none;
+  text-align: center;
+  line-height: 16px;
+  font-size: 14px;
+  position: relative;
+  color: #1f2937;
+}
+
+/* Today's date */
+.react-calendar__tile--now {
+  background: #eef3ff !important;
+  border-radius: 8px;
+  color: #1f2937;
+  font-weight: normal;
+}
+
+.react-calendar__tile--now:enabled:hover,
+.react-calendar__tile--now:enabled:focus {
+  background: #eef3ff !important;
+}
+
+/* Selected date */
+.react-calendar__tile--active {
+  background: #3b82f6 !important;
+  color: white !important;
+  border-radius: 8px;
+}
+
+.react-calendar__tile--active:enabled:hover,
+.react-calendar__tile--active:enabled:focus {
+  background: #3b82f6 !important;
+}
+
+/* Weekend days */
+.react-calendar__month-view__days__day--weekend {
+  color: #ef4444;
+}
+
+/* Neighboring month days */
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: #d1d5db !important;
+}
+
+/* Available slots indicator */
+.availability-dot {
+  width: 4px;
+  height: 4px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Hover effects */
+.react-calendar__tile:enabled:hover,
+.react-calendar__tile:enabled:focus {
+  background-color: #f3f4f6;
+  border-radius: 8px;
+}
+
+/* Disabled dates */
+.react-calendar__tile:disabled {
+  background-color: transparent;
+  color: #d1d5db;
+}
+
+@media (max-width: 768px) {
+  .calendar-wrapper {
+    padding: 16px;
+  }
+  
+  .react-calendar__tile {
+    padding: 10px 6px;
+  }
+} 

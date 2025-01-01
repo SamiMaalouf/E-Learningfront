@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getToken } from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
+import './Tutors.css';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import './Tutors.css';
 
 const Tutors = () => {
   const [tutors, setTutors] = useState([]);
@@ -12,8 +12,9 @@ const Tutors = () => {
   const [expandedTutor, setExpandedTutor] = useState(null);
   const [tutorDetails, setTutorDetails] = useState({});
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isBooking, setIsBooking] = useState(false);
+  const [deletingSlotId, setDeletingSlotId] = useState(null);
   const [bookingError, setBookingError] = useState(null);
+  const [bookingSuccess, setBookingSuccess] = useState(null);
   const [bookingSlotId, setBookingSlotId] = useState(null);
   const navigate = useNavigate();
 
@@ -27,14 +28,19 @@ const Tutors = () => {
         headers: {
           'Authorization': `Bearer ${getToken()}`,
           'Content-Type': 'application/json'
-        },
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch instructors');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch tutors: ${response.status}`);
+      }
+
       const data = await response.json();
       setTutors(data.users || []);
     } catch (error) {
-      setError(error.message);
+      console.error('Error fetching tutors:', error);
+      setError('Failed to load tutors');
+      setTutors([]);
     } finally {
       setLoading(false);
     }
@@ -46,33 +52,30 @@ const Tutors = () => {
 
   const fetchTutorDetails = async (tutorId) => {
     try {
+      if (!tutorId) return;
+
+      const headers = {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+      };
+
       const [classesRes, coursesRes, scheduleRes, experienceRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/classes/instructor/${tutorId}`, {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        }),
-        fetch(`http://localhost:5000/api/courses?instructor_id=${tutorId}`, {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        }),
-        fetch(`http://localhost:5000/api/availability?instructor_id=${tutorId}`, {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        }),
-        fetch(`http://localhost:5000/api/experiences/instructor/${tutorId}`, {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        })
+        fetch(`http://localhost:5000/api/classes/instructor/${tutorId}`, { headers }),
+        fetch(`http://localhost:5000/api/courses?instructor_id=${tutorId}`, { headers }),
+        fetch(`http://localhost:5000/api/availability/instructor/${tutorId}`, { headers }),
+        fetch(`http://localhost:5000/api/experiences/instructor/${tutorId}`, { headers })
       ]);
 
-      const [classesData, coursesData, scheduleData, experienceData] = await Promise.all([
-        classesRes.json(),
-        coursesRes.json(),
-        scheduleRes.json(),
-        experienceRes.json()
-      ]);
+      const classesData = await classesRes.json();
+      const coursesData = await coursesRes.json();
+      const scheduleData = await scheduleRes.json();
+      const experienceData = await experienceRes.json();
 
       setTutorDetails(prevDetails => ({
         ...prevDetails,
         [tutorId]: {
           classes: classesData.classes || [],
-          courses: coursesData || [],
+          courses: Array.isArray(coursesData) ? coursesData : [],
           schedule: scheduleData.available_slots || [],
           experience: experienceData.experiences || []
         }
@@ -80,17 +83,21 @@ const Tutors = () => {
 
     } catch (error) {
       console.error('Error fetching tutor details:', error);
+      setError(`Failed to load tutor details: ${error.message}`);
     }
   };
 
-  const handleShowMore = async (tutorId) => {
-    if (expandedTutor === tutorId) {
-      setExpandedTutor(null);
-    } else {
-      setExpandedTutor(tutorId);
-      if (!tutorDetails[tutorId]) {
+  const handleExpandTutor = async (tutorId) => {
+    try {
+      if (expandedTutor === tutorId) {
+        setExpandedTutor(null);
+      } else {
+        setExpandedTutor(tutorId);
         await fetchTutorDetails(tutorId);
       }
+    } catch (error) {
+      console.error('Error handling tutor expansion:', error);
+      setError('Failed to load tutor details');
     }
   };
 
@@ -103,20 +110,35 @@ const Tutors = () => {
   };
 
   const getDateSlots = (tutorId, date) => {
-    const schedule = tutorDetails[tutorId]?.schedule || [];
-    const startOfDay = new Date(date).setHours(0, 0, 0, 0) / 1000;
-    const endOfDay = new Date(date).setHours(23, 59, 59, 999) / 1000;
-
-    for (const daySchedule of schedule) {
-      const slots = Object.values(daySchedule)[0].slots;
-      if (slots.some(slot => 
-        slot.start_epoch >= startOfDay && 
-        slot.end_epoch <= endOfDay
-      )) {
-        return slots;
-      }
+    if (!tutorDetails[tutorId]?.schedule) return [];
+    
+    // Create a new date object and set it to midnight in the local timezone
+    const localDate = new Date(date);
+    localDate.setHours(0, 0, 0, 0);
+    
+    // Format the date to YYYY-MM-DD in the local timezone
+    const formattedDate = localDate.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+    
+    console.log('Looking for date:', formattedDate);
+    console.log('Available dates:', tutorDetails[tutorId].schedule.map(obj => Object.keys(obj)[0]));
+    
+    const daySchedule = tutorDetails[tutorId].schedule.find(dateObj => {
+      const dateKey = Object.keys(dateObj)[0];
+      console.log('Comparing:', dateKey, formattedDate);
+      return dateKey === formattedDate;
+    });
+    
+    if (daySchedule) {
+      const slots = daySchedule[formattedDate]?.slots || [];
+      console.log('Found slots for', formattedDate, ':', slots);
+      return slots;
     }
-    return null;
+    
+    return [];
+  };
+
+  const formatDate = (date) => {
+    return new Date(date).toISOString().split('T')[0];
   };
 
   const getTileContent = ({ date, view }, tutorId) => {
@@ -145,16 +167,16 @@ const Tutors = () => {
     return hasAvailableSlots ? 'has-available-slots' : '';
   };
 
-  const bookTimeSlot = async (instructorId, slotId) => {
-    setBookingSlotId(slotId);
-    setBookingError(null);
-
+  const bookSession = async (instructorId, slotId) => {
     try {
+      setBookingSlotId(slotId);
+      setBookingError(null);
+      
       const response = await fetch('http://localhost:5000/api/availability/book', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getToken()}`
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           instructor_id: instructorId,
@@ -162,21 +184,51 @@ const Tutors = () => {
         })
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to book slot');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to book session');
       }
 
+      const data = await response.json();
+      setBookingSuccess('Session booked successfully!');
+      
+      // Refresh the tutor details to update the availability
       await fetchTutorDetails(instructorId);
-      alert('Slot booked successfully!');
-
     } catch (error) {
       console.error('Booking error:', error);
-      setBookingError(error.message);
-      alert(`Failed to book slot: ${error.message}`);
+      setBookingError(error.message || 'Failed to book session');
     } finally {
       setBookingSlotId(null);
+    }
+  };
+
+  const deleteBooking = async (slotId) => {
+    try {
+      setDeletingSlotId(slotId);
+      setBookingError(null);
+
+      const response = await fetch(`http://localhost:5000/api/availability/appointment/${slotId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to cancel booking');
+      }
+
+      setBookingSuccess('Booking cancelled successfully!');
+      
+      // Refresh the tutor details
+      await fetchTutorDetails(expandedTutor);
+    } catch (error) {
+      console.error('Cancellation error:', error);
+      setBookingError(error.message || 'Failed to cancel booking');
+    } finally {
+      setDeletingSlotId(null);
     }
   };
 
@@ -209,7 +261,7 @@ const Tutors = () => {
                     />
                   </div>
                   <div className="tutor-basic-info">
-                    <h3>{tutor.name}</h3>
+                    <h3>{`${tutor.first_name} ${tutor.last_name}`}</h3>
                     <p>{tutor.email}</p>
                     <p>{tutor.role}</p>
                   </div>
@@ -221,108 +273,141 @@ const Tutors = () => {
                   <div className="detail-section">
                     <h4>Grades Taught</h4>
                     <ul>
-                      {tutorDetails[tutor.id].classes.map((cls, index) => {
-                        console.log('Class data:', cls); // For debugging
-                        return (
-                          <li key={index}>
-                             {cls.grade_level || cls.grade_id} {cls.section}
-                          </li>
-                        );
-                      })}
+                      {tutorDetails[tutor.id].classes.map((cls) => (
+                        <li key={cls.id}>
+                          {cls.grade_level} {cls.section}
+                        </li>
+                      ))}
                     </ul>
                   </div>
 
                   <div className="detail-section">
-                    <h4>Courses Taught</h4>
-                    <ul className="courses-list">
-                      {tutorDetails[tutor.id].courses.length > 0 ? (
-                        tutorDetails[tutor.id].courses.map((course) => (
-                          <li key={course.id}>
-                            <div className="course-info">
-                              <h5>{course.title}</h5>
-                              <p>{course.description}</p>
-                              <div className="course-dates">
-                                <span>Start: {new Date(course.start_date).toLocaleDateString()}</span>
-                                <span>End: {new Date(course.end_date).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-                          </li>
-                        ))
-                      ) : (
-                        <li>No courses assigned yet</li>
-                      )}
+                    <h4>Courses</h4>
+                    <ul>
+                      {tutorDetails[tutor.id].courses.map((course) => (
+                        <li key={course.id}>
+                          <strong>{course.title}</strong>
+                          <p>{course.description}</p>
+                          <small>
+                            {new Date(course.start_date).toLocaleDateString()} - 
+                            {new Date(course.end_date).toLocaleDateString()}
+                          </small>
+                        </li>
+                      ))}
                     </ul>
-                  </div>
-
-                  <div className="detail-section schedule-section">
-                    <h4>Schedule</h4>
-                    <div className="calendar-container">
-                      <Calendar
-                        onChange={setSelectedDate}
-                        value={selectedDate}
-                        tileContent={({date, view}) => getTileContent({date, view}, tutor.id)}
-                        tileClassName={({date, view}) => getTileClassName({date, view}, tutor.id)}
-                        minDate={new Date()}
-                      />
-                    </div>
-                    {selectedDate && (
-                      <div className="selected-date-slots">
-                        <h5>Available Slots for {selectedDate.toLocaleDateString()}</h5>
-                        {bookingError && (
-                          <div className="booking-error">
-                            {bookingError}
-                          </div>
-                        )}
-                        <div className="slots-list">
-                          {getDateSlots(tutor.id, selectedDate)?.map((slot) => (
-                            <div 
-                              key={slot.id}
-                              className={`slot ${slot.is_booked ? 'booked' : 'available'}`}
-                              onClick={() => {
-                                if (!slot.is_booked && bookingSlotId !== slot.id) {
-                                  if (window.confirm(`Book slot for ${slot.start} - ${slot.end}?`)) {
-                                    bookTimeSlot(tutor.id, slot.id);
-                                  }
-                                }
-                              }}
-                            >
-                              <span className="slot-time">
-                                {`${slot.start} - ${slot.end}`}
-                              </span>
-                              <span className="slot-status">
-                                {slot.is_booked ? 
-                                  '(Booked)' : 
-                                  bookingSlotId === slot.id ? 
-                                    'Booking...' : 
-                                    '(Available)'
-                                }
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   <div className="detail-section">
                     <h4>Experience</h4>
-                    <ul className="experience-list">
-                      {tutorDetails[tutor.id].experience.map((exp, index) => (
-                        <li key={index}>{exp.description}</li>
+                    <div className="experience-list">
+                      {tutorDetails[tutor.id].experience.map((exp) => (
+                        <div key={exp.id} className="experience-item">
+                          <h3>{exp.title}</h3>
+                          <p>{exp.company} - {exp.location}</p>
+                          <p className="date">
+                            {new Date(exp.start_date).toLocaleDateString()} - 
+                            {exp.is_current ? 'Present' : new Date(exp.end_date).toLocaleDateString()}
+                          </p>
+                          <p>{exp.description}</p>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
+                  </div>
+
+                  <div className="detail-section schedule-section">
+                    <h4>Schedule</h4>
+                    <div className="calendar-wrapper">
+                      <Calendar
+                        onChange={setSelectedDate}
+                        value={selectedDate}
+                        locale="en-US"
+                        calendarType="iso8601"
+                        tileClassName={({ date }) => {
+                          const formattedDate = date.toLocaleDateString('en-CA');
+                          const hasSlots = tutorDetails[tutor.id]?.schedule?.some(dateObj => 
+                            Object.keys(dateObj)[0] === formattedDate
+                          );
+                          return hasSlots ? 'has-available-slots' : '';
+                        }}
+                        tileContent={({ date }) => {
+                          const formattedDate = date.toLocaleDateString('en-CA');
+                          const hasSlots = tutorDetails[tutor.id]?.schedule?.some(dateObj => 
+                            Object.keys(dateObj)[0] === formattedDate
+                          );
+                          return hasSlots ? <div className="availability-dot" /> : null;
+                        }}
+                        minDate={new Date()}
+                        maxDetail="month"
+                        minDetail="month"
+                        showNeighboringMonth={true}
+                        formatShortWeekday={(locale, date) => 
+                          ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()]
+                        }
+                      />
+                    </div>
+                    
+                    <div className="slots-list">
+                      {getDateSlots(tutor.id, selectedDate).map((slot) => (
+                        <div 
+                          key={slot.id}
+                          className={`slot ${slot.is_booked ? 'booked' : 'available'}`}
+                        >
+                          <span className="slot-time">
+                            {`${slot.start} - ${slot.end}`}
+                          </span>
+                          <span className="slot-status">
+                            {slot.is_booked ? (
+                              <>
+                                <span>(Booked)</span>
+                                <button 
+                                  className="cancel-button"
+                                  onClick={() => deleteBooking(slot.id)}
+                                  disabled={deletingSlotId === slot.id}
+                                >
+                                  {deletingSlotId === slot.id ? 'Cancelling...' : 'Cancel'}
+                                </button>
+                              </>
+                            ) : (
+                              <div 
+                                className="booking-action"
+                                onClick={() => !bookingSlotId && bookSession(tutor.id, slot.id)}
+                              >
+                                {bookingSlotId === slot.id ? (
+                                  <span className="booking-status">Booking...</span>
+                                ) : (
+                                  <>
+                                    <span className="available-text">Available</span>
+                                    <span className="book-prompt">Click to book →</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
               <button 
                 className="expand-button"
-                onClick={() => handleShowMore(tutor.id)}
+                onClick={() => handleExpandTutor(tutor.id)}
               >
                 {expandedTutor === tutor.id ? 'Show Less' : 'Show More'}
               </button>
             </div>
           ))}
+        </div>
+      )}
+      {bookingError && (
+        <div className="error-message">
+          {bookingError}
+        </div>
+      )}
+      {bookingSuccess && (
+        <div className="success-message">
+          {bookingSuccess}
         </div>
       )}
     </div>
