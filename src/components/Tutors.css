@@ -1485,3 +1485,58 @@ button {
   33% { content: ".."; }
   66% { content: "..."; }
 } 
+
+.slot.booked {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.booked-text {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.slot.booked .slot-time {
+  color: #6b7280;
+} 
+
+.booked-slot-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.cancel-button {
+  padding: 8px 16px;
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.reschedule-button {
+  padding: 8px 16px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.reschedule-button:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.cancel-button:disabled,
+.reschedule-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+} 
