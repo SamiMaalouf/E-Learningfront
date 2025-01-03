@@ -23,11 +23,13 @@ const Tutors = () => {
   const [bookedSessions, setBookedSessions] = useState([]);
   const [checkedSlots, setCheckedSlots] = useState({});
   const [weeklyAvailability, setWeeklyAvailability] = useState({});
+  const [studentBookings, setStudentBookings] = useState([]);
   const navigate = useNavigate();
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   useEffect(() => {
     fetchTutors();
+    fetchStudentBookings();
   }, []);
 
   const fetchTutors = async () => {
@@ -51,6 +53,42 @@ const Tutors = () => {
       setTutors([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStudentBookings = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/bookings/student-bookings', {
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch student bookings');
+      }
+
+      const data = await response.json();
+      setStudentBookings(data.bookings || []);
+
+      const newCheckedSlots = {};
+      data.bookings.forEach(booking => {
+        const slotKey = `${booking.slot_id}-${booking.date}`;
+        newCheckedSlots[slotKey] = {
+          is_booked: true,
+          booking_id: booking.id,
+          slot_id: booking.slot_id,
+          date: booking.date,
+          start_time: booking.start_time,
+          end_time: booking.end_time,
+          status: booking.status
+        };
+      });
+      setCheckedSlots(prev => ({...prev, ...newCheckedSlots}));
+    } catch (error) {
+      console.error('Error fetching student bookings:', error);
+      toast.error('Failed to load your bookings');
     }
   };
 
@@ -278,21 +316,8 @@ const Tutors = () => {
       }
 
       if (data.success && data.booking) {
-        setWeeklyAvailability(prev => {
-          const newAvailability = { ...prev };
-          const bookingDate = data.booking.date;
-          
-          if (newAvailability[bookingDate]) {
-            newAvailability[bookingDate] = newAvailability[bookingDate].map(s => 
-              s.slot_id === slot.slot_id 
-                ? { ...s, is_available: false }
-                : s
-            );
-          }
-          
-          return newAvailability;
-        });
-
+        setStudentBookings(prev => [...prev, data.booking]);
+        
         const slotKey = `${slot.slot_id}-${slot.date}`;
         setCheckedSlots(prev => ({
           ...prev,
@@ -302,12 +327,12 @@ const Tutors = () => {
             slot_id: slot.slot_id,
             date: slot.date,
             start_time: data.booking.start_time,
-            end_time: data.booking.end_time
+            end_time: data.booking.end_time,
+            status: data.booking.status
           }
         }));
         
         toast.success('Session booked successfully!');
-        
         await fetchWeeklySlots(instructorId, new Date(slot.date));
       } else {
         throw new Error('Booking failed: Invalid response format');
@@ -349,9 +374,20 @@ const Tutors = () => {
       }
 
       if (data.success) {
+        setStudentBookings(prev => prev.filter(booking => booking.id !== bookingId));
+        
+        setCheckedSlots(prev => {
+          const newCheckedSlots = { ...prev };
+          Object.keys(newCheckedSlots).forEach(key => {
+            if (newCheckedSlots[key].booking_id === bookingId) {
+              delete newCheckedSlots[key];
+            }
+          });
+          return newCheckedSlots;
+        });
+
         toast.success('Booking cancelled successfully');
         
-        // Refresh the weekly availability
         if (expandedTutor && selectedDate) {
           await fetchWeeklySlots(expandedTutor, selectedDate);
         }
@@ -417,20 +453,20 @@ const Tutors = () => {
       }
 
       if (data.success) {
-        // Update the checkedSlots state for both old and new slots
+        setStudentBookings(prev => {
+          const updatedBookings = prev.filter(booking => booking.id !== data.old_booking.id);
+          return [...updatedBookings, data.new_booking];
+        });
+
         setCheckedSlots(prev => {
           const newCheckedSlots = { ...prev };
           
-          // Update old slot using the found oldSlotKey
-          if (oldSlotKey) {
-            newCheckedSlots[oldSlotKey] = {
-              ...newCheckedSlots[oldSlotKey],
-              is_booked: false,
-              booking_id: null
-            };
-          }
+          Object.keys(newCheckedSlots).forEach(key => {
+            if (newCheckedSlots[key].booking_id === data.old_booking.id) {
+              delete newCheckedSlots[key];
+            }
+          });
           
-          // Update new slot
           const newSlotKey = `${newSlot.slot_id}-${data.new_booking.date}`;
           newCheckedSlots[newSlotKey] = {
             is_booked: true,
@@ -438,19 +474,13 @@ const Tutors = () => {
             slot_id: newSlot.slot_id,
             date: data.new_booking.date,
             start_time: data.new_booking.start_time,
-            end_time: data.new_booking.end_time
+            end_time: data.new_booking.end_time,
+            status: data.new_booking.status
           };
           
           return newCheckedSlots;
         });
 
-        // Update weekly availability for both dates
-        await fetchWeeklySlots(expandedTutor, selectedDate);
-        if (data.old_booking.date !== newSlot.date) {
-          await fetchWeeklySlots(expandedTutor, new Date(data.old_booking.date));
-        }
-
-        // Clear rescheduling state
         setReschedulingSlotId(null);
         toast.success('Session rescheduled successfully!');
       } else {
