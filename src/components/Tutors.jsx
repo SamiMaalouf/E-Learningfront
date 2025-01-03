@@ -402,71 +402,39 @@ const Tutors = () => {
     }
   };
 
-  const handleReschedule = async (oldSlotId, newSlot) => {
+  const handleReschedule = async (oldBookingId, newSlot) => {
     try {
-      console.log('Starting reschedule process:', { 
-        oldSlotId: oldSlotId,
-        newSlotId: newSlot.slot_id,
-        newSlot: newSlot
-      });
-      
       setIsRescheduling(true);
-
-      // Find the booking ID by searching through all checked slots
-      let bookingId = null;
-      let oldSlotKey = null;
-      
-      // Search through all checked slots to find the booking
-      Object.entries(checkedSlots).forEach(([key, value]) => {
-        if (value.slot_id === oldSlotId && value.booking_id) {
-          bookingId = value.booking_id;
-          oldSlotKey = key;
-        }
-      });
-
-      if (!bookingId) {
-        throw new Error('Booking ID not found');
-      }
-
-      const requestBody = {
-        booking_id: bookingId,
-        new_slot_id: parseInt(newSlot.slot_id),
-        new_date: newSlot.date
-      };
-
-      console.log('Sending reschedule request:', requestBody);
-
       const response = await fetch('http://localhost:5000/api/bookings/reschedule', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getToken()}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          booking_id: oldBookingId,
+          new_slot_id: newSlot.slot_id,
+          new_date: newSlot.date
+        })
       });
 
       const data = await response.json();
-      console.log('Reschedule API response:', data);
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to reschedule booking');
-      }
-
       if (data.success) {
+        // Update studentBookings
         setStudentBookings(prev => {
           const updatedBookings = prev.filter(booking => booking.id !== data.old_booking.id);
           return [...updatedBookings, data.new_booking];
         });
 
+        // Update checkedSlots
         setCheckedSlots(prev => {
           const newCheckedSlots = { ...prev };
           
-          Object.keys(newCheckedSlots).forEach(key => {
-            if (newCheckedSlots[key].booking_id === data.old_booking.id) {
-              delete newCheckedSlots[key];
-            }
-          });
+          // Remove old booking
+          const oldSlotKey = `${oldBookingId}-${data.old_booking.date}`;
+          delete newCheckedSlots[oldSlotKey];
           
+          // Add new booking
           const newSlotKey = `${newSlot.slot_id}-${data.new_booking.date}`;
           newCheckedSlots[newSlotKey] = {
             is_booked: true,
@@ -481,14 +449,36 @@ const Tutors = () => {
           return newCheckedSlots;
         });
 
+        // Update weeklyAvailability
+        setWeeklyAvailability(prev => {
+          const newAvailability = { ...prev };
+          
+          // Update old slot date
+          if (newAvailability[data.old_booking.date]) {
+            newAvailability[data.old_booking.date] = newAvailability[data.old_booking.date].map(slot => 
+              slot.slot_id === oldBookingId ? { ...slot, is_available: true } : slot
+            );
+          }
+          
+          // Update new slot date
+          if (newAvailability[newSlot.date]) {
+            newAvailability[newSlot.date] = newAvailability[newSlot.date].map(slot => 
+              slot.slot_id === newSlot.slot_id ? { ...slot, is_available: false } : slot
+            );
+          }
+          
+          return newAvailability;
+        });
+
         setReschedulingSlotId(null);
         toast.success('Session rescheduled successfully!');
-      } else {
-        throw new Error('Rescheduling failed: Invalid response format');
+        
+        // Refresh the weekly slots
+        await fetchWeeklySlots(expandedTutor, selectedDate);
       }
     } catch (error) {
-      console.error('Reschedule error:', error);
-      toast.error(error.message || 'Failed to reschedule booking');
+      console.error('Error rescheduling session:', error);
+      toast.error('Failed to reschedule session');
     } finally {
       setIsRescheduling(false);
     }
@@ -733,7 +723,7 @@ const Tutors = () => {
                                     className="reschedule-button"
                                     onClick={() => {
                                       console.log('Starting reschedule for slot:', slot);
-                                      setReschedulingSlotId(slot.slot_id);
+                                      setReschedulingSlotId(slot.booking_id);
                                     }}
                                     disabled={isRescheduling}
                                   >
