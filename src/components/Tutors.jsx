@@ -26,6 +26,9 @@ const Tutors = () => {
   const [studentBookings, setStudentBookings] = useState([]);
   const navigate = useNavigate();
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const [showRepeatModal, setShowRepeatModal] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [repeatEndDate, setRepeatEndDate] = useState(null);
 
   useEffect(() => {
     fetchTutors();
@@ -563,15 +566,10 @@ const Tutors = () => {
     }
   };
 
-  const handleRepeatBooking = async (slot, tutorId) => {
+  const handleRepeatBooking = async (slot, tutorId, endDate) => {
     try {
-      setIsRescheduling(true); // Reuse loading state
+      setIsRescheduling(true);
       
-      // Calculate end date (4 weeks from start date)
-      const startDate = new Date(slot.date);
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 28); // 4 weeks
-
       const response = await fetch('http://localhost:5000/api/bookings/book-repeat', {
         method: 'POST',
         headers: {
@@ -581,7 +579,7 @@ const Tutors = () => {
         body: JSON.stringify({
           slot_id: slot.slot_id,
           start_date: slot.date,
-          end_date: endDate.toISOString().split('T')[0],
+          end_date: endDate,
           instructor_id: tutorId
         })
       });
@@ -589,10 +587,8 @@ const Tutors = () => {
       const data = await response.json();
       
       if (data.success) {
-        // Update bookings state with all new bookings
         setStudentBookings(prev => [...prev, ...data.bookings]);
         
-        // Update checkedSlots with all new bookings
         const newCheckedSlots = {};
         data.bookings.forEach(booking => {
           const slotKey = `${slot.slot_id}-${booking.date}`;
@@ -608,7 +604,6 @@ const Tutors = () => {
         });
         
         setCheckedSlots(prev => ({...prev, ...newCheckedSlots}));
-        
         toast.success(`Successfully booked ${data.bookings.length} recurring sessions`);
         await fetchWeeklySlots(tutorId, selectedDate);
       }
@@ -803,7 +798,8 @@ const Tutors = () => {
                                         className="repeat-book-button"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleRepeatBooking(slot, tutor.id);
+                                          setSelectedSlot({ ...slot, tutorId: tutor.id });
+                                          setShowRepeatModal(true);
                                         }}
                                       >
                                         Book Weekly
@@ -839,6 +835,70 @@ const Tutors = () => {
       {bookingSuccess && (
         <div className="success-message">
           {bookingSuccess}
+        </div>
+      )}
+      {showRepeatModal && (
+        <div className="modal-overlay">
+          <div className="repeat-booking-modal">
+            <h3>Book Weekly Sessions</h3>
+            <p>Select end date for weekly sessions</p>
+            <p className="start-date">Starting from: {selectedSlot?.date}</p>
+            
+            <input
+              type="date"
+              value={repeatEndDate || ''}
+              onChange={(e) => {
+                const selectedEndDate = e.target.value;
+                // Only proceed if a valid date is selected
+                if (selectedEndDate && selectedSlot) {
+                  const selectedTimestamp = new Date(selectedEndDate).getTime();
+                  const currentTimestamp = repeatEndDate ? new Date(repeatEndDate).getTime() : 0;
+                  
+                  // Only confirm if the date actually changed (not just calendar navigation)
+                  if (selectedTimestamp !== currentTimestamp) {
+                    setRepeatEndDate(selectedEndDate);
+                    handleRepeatBooking(selectedSlot, selectedSlot.tutorId, selectedEndDate);
+                    setShowRepeatModal(false);
+                    setSelectedSlot(null);
+                    // Don't need to reset repeatEndDate as the modal is closing
+                  }
+                }
+              }}
+              min={selectedSlot?.date}
+              max={(() => {
+                const maxDate = new Date(selectedSlot?.date);
+                maxDate.setMonth(maxDate.getMonth() + 6);
+                return maxDate.toISOString().split('T')[0];
+              })()}
+            />
+            
+            <div className="modal-actions">
+              <button 
+                className="cancel-modal-button"
+                onClick={() => {
+                  setShowRepeatModal(false);
+                  setSelectedSlot(null);
+                  setRepeatEndDate(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="confirm-repeat-button"
+                onClick={() => {
+                  if (selectedSlot && repeatEndDate) {
+                    handleRepeatBooking(selectedSlot, selectedSlot.tutorId, repeatEndDate);
+                    setShowRepeatModal(false);
+                    setSelectedSlot(null);
+                    setRepeatEndDate(null);
+                  }
+                }}
+                disabled={!repeatEndDate}
+              >
+                Confirm Weekly Booking
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
