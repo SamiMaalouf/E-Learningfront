@@ -563,6 +563,63 @@ const Tutors = () => {
     }
   };
 
+  const handleRepeatBooking = async (slot, tutorId) => {
+    try {
+      setIsRescheduling(true); // Reuse loading state
+      
+      // Calculate end date (4 weeks from start date)
+      const startDate = new Date(slot.date);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 28); // 4 weeks
+
+      const response = await fetch('http://localhost:5000/api/bookings/book-repeat', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          slot_id: slot.slot_id,
+          start_date: slot.date,
+          end_date: endDate.toISOString().split('T')[0],
+          instructor_id: tutorId
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update bookings state with all new bookings
+        setStudentBookings(prev => [...prev, ...data.bookings]);
+        
+        // Update checkedSlots with all new bookings
+        const newCheckedSlots = {};
+        data.bookings.forEach(booking => {
+          const slotKey = `${slot.slot_id}-${booking.date}`;
+          newCheckedSlots[slotKey] = {
+            is_booked: true,
+            booking_id: booking.id,
+            slot_id: slot.slot_id,
+            date: booking.date,
+            start_time: booking.start_time,
+            end_time: booking.end_time,
+            status: booking.status
+          };
+        });
+        
+        setCheckedSlots(prev => ({...prev, ...newCheckedSlots}));
+        
+        toast.success(`Successfully booked ${data.bookings.length} recurring sessions`);
+        await fetchWeeklySlots(tutorId, selectedDate);
+      }
+    } catch (error) {
+      console.error('Error booking repeat sessions:', error);
+      toast.error('Failed to book recurring sessions');
+    } finally {
+      setIsRescheduling(false);
+    }
+  };
+
   useEffect(() => {
     if (expandedTutor && selectedDate) {
       console.log('Selected date changed to:', selectedDate);
@@ -704,25 +761,29 @@ const Tutors = () => {
                           <div 
                             key={`${slot.date}-${slot.start_time}`}
                             className={`slot ${slot.is_booked ? 'booked' : 'available'}`}
+                            onClick={() => !slot.is_booked && handleSlotClick(slot, tutor.id)}
                           >
                             <div className="slot-time">
                               {`${slot.start_time} - ${slot.end_time}`}
                             </div>
                             
-                            <div className="slot-actions">
+                            <div className="slot-status">
                               {slot.is_booked ? (
                                 <div className="booked-slot-actions">
                                   <button 
                                     className="cancel-button"
-                                    onClick={() => deleteBooking(slot.booking_id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteBooking(slot.booking_id);
+                                    }}
                                     disabled={deletingSlotId === slot.booking_id || isRescheduling}
                                   >
                                     {deletingSlotId === slot.booking_id ? 'Cancelling...' : 'Cancel'}
                                   </button>
                                   <button 
                                     className="reschedule-button"
-                                    onClick={() => {
-                                      console.log('Starting reschedule for slot:', slot);
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setReschedulingSlotId(slot.booking_id);
                                     }}
                                     disabled={isRescheduling}
@@ -731,17 +792,25 @@ const Tutors = () => {
                                   </button>
                                 </div>
                               ) : (
-                                <div 
-                                  className="available-slot"
-                                  onClick={() => handleSlotClick(slot, tutor.id)}
-                                >
-                                  <span className="available-text">
-                                    {reschedulingSlotId ? 'Click to reschedule here' : 'Available'}
-                                  </span>
-                                  <span className="book-text">
-                                    {reschedulingSlotId ? '→' : 'Click to book →'}
-                                  </span>
-                                </div>
+                                <>
+                                  <span className="available-text">Available</span>
+                                  <div className="booking-options">
+                                    <span className="book-text">
+                                      {reschedulingSlotId ? 'Click to reschedule →' : 'Click to book →'}
+                                    </span>
+                                    {!reschedulingSlotId && (
+                                      <button
+                                        className="repeat-book-button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRepeatBooking(slot, tutor.id);
+                                        }}
+                                      >
+                                        Book Weekly
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
                               )}
                             </div>
                           </div>
