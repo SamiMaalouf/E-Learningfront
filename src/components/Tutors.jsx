@@ -376,15 +376,31 @@ const Tutors = () => {
       
       setIsRescheduling(true);
 
-      // Ensure we're using the correct slot IDs
+      // Find the booking ID by searching through all checked slots
+      let bookingId = null;
+      let oldSlotKey = null;
+      
+      // Search through all checked slots to find the booking
+      Object.entries(checkedSlots).forEach(([key, value]) => {
+        if (value.slot_id === oldSlotId && value.booking_id) {
+          bookingId = value.booking_id;
+          oldSlotKey = key;
+        }
+      });
+
+      if (!bookingId) {
+        throw new Error('Booking ID not found');
+      }
+
       const requestBody = {
-        old_slot_id: parseInt(oldSlotId),
-        new_slot_id: parseInt(newSlot.slot_id)
+        booking_id: bookingId,
+        new_slot_id: parseInt(newSlot.slot_id),
+        new_date: newSlot.date
       };
 
       console.log('Sending reschedule request:', requestBody);
 
-      const response = await fetch('http://localhost:5000/api/availability/reschedule', {
+      const response = await fetch('http://localhost:5000/api/bookings/reschedule', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getToken()}`,
@@ -401,20 +417,38 @@ const Tutors = () => {
       }
 
       if (data.success) {
-        // Get the dates from the response
-        const oldDate = data.booking.old_schedule.date;
-        const newDate = data.booking.new_schedule.date;
-        
-        console.log('Updating slots with dates:', {
-          oldDate,
-          newDate,
-          oldSlotId,
-          newSlotId: newSlot.slot_id,
-          bookingId: data.booking.id
+        // Update the checkedSlots state for both old and new slots
+        setCheckedSlots(prev => {
+          const newCheckedSlots = { ...prev };
+          
+          // Update old slot using the found oldSlotKey
+          if (oldSlotKey) {
+            newCheckedSlots[oldSlotKey] = {
+              ...newCheckedSlots[oldSlotKey],
+              is_booked: false,
+              booking_id: null
+            };
+          }
+          
+          // Update new slot
+          const newSlotKey = `${newSlot.slot_id}-${data.new_booking.date}`;
+          newCheckedSlots[newSlotKey] = {
+            is_booked: true,
+            booking_id: data.new_booking.id,
+            slot_id: newSlot.slot_id,
+            date: data.new_booking.date,
+            start_time: data.new_booking.start_time,
+            end_time: data.new_booking.end_time
+          };
+          
+          return newCheckedSlots;
         });
 
-        // Update weekly availability
+        // Update weekly availability for both dates
         await fetchWeeklySlots(expandedTutor, selectedDate);
+        if (data.old_booking.date !== newSlot.date) {
+          await fetchWeeklySlots(expandedTutor, new Date(data.old_booking.date));
+        }
 
         // Clear rescheduling state
         setReschedulingSlotId(null);
