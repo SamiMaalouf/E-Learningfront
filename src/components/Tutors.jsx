@@ -130,7 +130,7 @@ const Tutors = () => {
   const checkSlotAvailability = async (slotId, date) => {
     try {
       const response = await fetch(
-        `http://localhost:5000/api/availability/check-slot/${slotId}`,
+        `http://localhost:5000/api/bookings/check-slot/${slotId}?date=${date}&instructor_id=${expandedTutor}`,
         {
           headers: {
             'Authorization': `Bearer ${getToken()}`,
@@ -143,8 +143,7 @@ const Tutors = () => {
       
       if (data.success) {
         const slotDetails = data.slot_details;
-        // Use next_occurrence from the API response
-        const slotKey = `${slotId}-${slotDetails.next_occurrence}`;
+        const slotKey = `${slotId}-${date}`;
         
         setCheckedSlots(prev => ({
           ...prev,
@@ -153,7 +152,6 @@ const Tutors = () => {
             booking_id: slotDetails.booking?.id || null,
             student: slotDetails.booking?.student || null,
             status: slotDetails.booking?.status || null,
-            next_occurrence: slotDetails.next_occurrence,
             start_time: slotDetails.start_time,
             end_time: slotDetails.end_time
           }
@@ -161,8 +159,7 @@ const Tutors = () => {
 
         return {
           is_booked: slotDetails.is_booked,
-          booking_id: slotDetails.booking?.id || null,
-          next_occurrence: slotDetails.next_occurrence
+          booking_id: slotDetails.booking?.id || null
         };
       }
       return { is_booked: false, booking_id: null };
@@ -175,13 +172,12 @@ const Tutors = () => {
   const getDateSlots = (tutorId, date) => {
     const formattedDate = formatDate(new Date(date));
     console.log('Getting slots for date:', formattedDate);
-    console.log('Current weekly availability:', weeklyAvailability);
+    console.log('Weekly availability:', weeklyAvailability);
     
     const slotsForDate = weeklyAvailability[formattedDate] || [];
-    console.log('Slots found for date:', formattedDate, slotsForDate);
+    console.log('Slots found for date:', slotsForDate);
 
     return slotsForDate.map(slot => {
-      // Get the booking status from checkedSlots
       const slotKey = `${slot.slot_id}-${formattedDate}`;
       const slotStatus = checkedSlots[slotKey];
       
@@ -192,7 +188,7 @@ const Tutors = () => {
         start_time: slot.start_time,
         end_time: slot.end_time,
         is_booked: !slot.is_available,
-        booking_id: slotStatus?.booking_id // Include booking_id if it exists
+        booking_id: slotStatus?.booking_id
       };
     });
   };
@@ -232,30 +228,40 @@ const Tutors = () => {
   };
 
   const handleSlotClick = async (slot, tutorId) => {
-    if (slot.is_booked) return;
+    console.log('Slot clicked:', slot);
     
-    try {
-      console.log('Attempting to book slot:', slot);
+    if (reschedulingSlotId) {
+      await handleReschedule(reschedulingSlotId, slot);
+    } else if (!slot.is_booked) {
       await bookSession(tutorId, slot);
-    } catch (error) {
-      console.error('Error in handleSlotClick:', error);
     }
   };
 
   const bookSession = async (instructorId, slot) => {
     try {
+      console.log('Starting booking process:', {
+        instructorId,
+        slot,
+        slotId: slot.slot_id,
+        date: slot.date
+      });
+
       setBookingSlotId(slot.id);
       setBookingError(null);
       
+      if (!slot.slot_id || !slot.date) {
+        throw new Error('Invalid slot data');
+      }
+
       const requestBody = {
         instructor_id: parseInt(instructorId),
         slot_id: parseInt(slot.slot_id),
         date: slot.date
       };
 
-      console.log('Booking request:', requestBody);
+      console.log('Booking request body:', requestBody);
 
-      const response = await fetch('http://localhost:5000/api/availability/book-slot', {
+      const response = await fetch('http://localhost:5000/api/bookings/book', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getToken()}`,
@@ -272,7 +278,21 @@ const Tutors = () => {
       }
 
       if (data.success && data.booking) {
-        // Store the booking information
+        setWeeklyAvailability(prev => {
+          const newAvailability = { ...prev };
+          const bookingDate = data.booking.date;
+          
+          if (newAvailability[bookingDate]) {
+            newAvailability[bookingDate] = newAvailability[bookingDate].map(s => 
+              s.slot_id === slot.slot_id 
+                ? { ...s, is_available: false }
+                : s
+            );
+          }
+          
+          return newAvailability;
+        });
+
         const slotKey = `${slot.slot_id}-${slot.date}`;
         setCheckedSlots(prev => ({
           ...prev,
@@ -280,12 +300,14 @@ const Tutors = () => {
             is_booked: true,
             booking_id: data.booking.id,
             slot_id: slot.slot_id,
-            date: slot.date
+            date: slot.date,
+            start_time: data.booking.start_time,
+            end_time: data.booking.end_time
           }
         }));
         
         toast.success('Session booked successfully!');
-        // Refresh the weekly availability
+        
         await fetchWeeklySlots(instructorId, new Date(slot.date));
       } else {
         throw new Error('Booking failed: Invalid response format');
@@ -310,12 +332,13 @@ const Tutors = () => {
 
       setDeletingSlotId(bookingId);
 
-      const response = await fetch(`http://localhost:5000/api/availability/cancel-booking/${bookingId}`, {
-        method: 'DELETE',
+      const response = await fetch('http://localhost:5000/api/bookings/cancel', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${getToken()}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ booking_id: bookingId })
       });
 
       const data = await response.json();
@@ -343,48 +366,65 @@ const Tutors = () => {
     }
   };
 
-  const rescheduleSession = async (currentSlotId, newSlotId, tutorId) => {
+  const handleReschedule = async (oldSlotId, newSlot) => {
     try {
-      setIsRescheduling(true);
-      const token = localStorage.getItem('token');
-      
-      console.log('Attempting to reschedule:', {
-        current_slot_id: currentSlotId,
-        new_slot_id: newSlotId,
-        tutorId: tutorId
+      console.log('Starting reschedule process:', { 
+        oldSlotId: oldSlotId,
+        newSlotId: newSlot.slot_id,
+        newSlot: newSlot
       });
+      
+      setIsRescheduling(true);
+
+      // Ensure we're using the correct slot IDs
+      const requestBody = {
+        old_slot_id: parseInt(oldSlotId),
+        new_slot_id: parseInt(newSlot.slot_id)
+      };
+
+      console.log('Sending reschedule request:', requestBody);
 
       const response = await fetch('http://localhost:5000/api/availability/reschedule', {
-        method: 'PUT',
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          current_slot_id: currentSlotId,
-          new_slot_id: newSlotId
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
-      console.log('API Response:', data);
+      console.log('Reschedule API response:', data);
 
-      if (data.success) {
-        toast.success(`Successfully rescheduled from ${data.rescheduled.from.start} to ${data.rescheduled.to.start}`);
-        
-        // Pass tutorId to fetchTutorDetails
-        if (typeof fetchTutorDetails === 'function') {
-          await fetchTutorDetails(tutorId);
-        }
-        
-        setReschedulingSlotId(null);
-      } else {
-        throw new Error('Rescheduling failed');
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to reschedule booking');
       }
 
+      if (data.success) {
+        // Get the dates from the response
+        const oldDate = data.booking.old_schedule.date;
+        const newDate = data.booking.new_schedule.date;
+        
+        console.log('Updating slots with dates:', {
+          oldDate,
+          newDate,
+          oldSlotId,
+          newSlotId: newSlot.slot_id,
+          bookingId: data.booking.id
+        });
+
+        // Update weekly availability
+        await fetchWeeklySlots(expandedTutor, selectedDate);
+
+        // Clear rescheduling state
+        setReschedulingSlotId(null);
+        toast.success('Session rescheduled successfully!');
+      } else {
+        throw new Error('Rescheduling failed: Invalid response format');
+      }
     } catch (error) {
       console.error('Reschedule error:', error);
-      toast.error('Failed to reschedule session');
+      toast.error(error.message || 'Failed to reschedule booking');
     } finally {
       setIsRescheduling(false);
     }
@@ -618,23 +658,35 @@ const Tutors = () => {
                             <div className="slot-actions">
                               {slot.is_booked ? (
                                 <div className="booked-slot-actions">
-                                  {slot.booking_id && ( // Only show delete button if we have a booking_id
-                                    <button 
-                                      className="cancel-button"
-                                      onClick={() => deleteBooking(slot.booking_id)}
-                                      disabled={deletingSlotId === slot.booking_id}
-                                    >
-                                      {deletingSlotId === slot.booking_id ? 'Cancelling...' : 'Cancel'}
-                                    </button>
-                                  )}
+                                  <button 
+                                    className="cancel-button"
+                                    onClick={() => deleteBooking(slot.booking_id)}
+                                    disabled={deletingSlotId === slot.booking_id || isRescheduling}
+                                  >
+                                    {deletingSlotId === slot.booking_id ? 'Cancelling...' : 'Cancel'}
+                                  </button>
+                                  <button 
+                                    className="reschedule-button"
+                                    onClick={() => {
+                                      console.log('Starting reschedule for slot:', slot);
+                                      setReschedulingSlotId(slot.slot_id);
+                                    }}
+                                    disabled={isRescheduling}
+                                  >
+                                    Reschedule
+                                  </button>
                                 </div>
                               ) : (
                                 <div 
                                   className="available-slot"
                                   onClick={() => handleSlotClick(slot, tutor.id)}
                                 >
-                                  <span className="available-text">Available</span>
-                                  <span className="book-text">Click to book →</span>
+                                  <span className="available-text">
+                                    {reschedulingSlotId ? 'Click to reschedule here' : 'Available'}
+                                  </span>
+                                  <span className="book-text">
+                                    {reschedulingSlotId ? '→' : 'Click to book →'}
+                                  </span>
                                 </div>
                               )}
                             </div>
